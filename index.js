@@ -1,11 +1,11 @@
+require('dotenv').config();
 const express = require("express");
 const { MongoClient, ObjectId } = require("mongodb");
 const app = express();
-const port = 3000;
+const port = process.env.port;
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const uri =
-  "mongodb+srv://TrackingTrip:adminadmin@cluster0.vz4h6lc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGODB_URI;
 
 app.use(cors());
 app.use(express.json());
@@ -42,10 +42,6 @@ async function connectToDatabase() {
     const carCollection = client.db("TrackingTrip").collection("Car");
     const rentalPropertiesCollection = client.db("TrackingTrip").collection("rentHome");
     const userCollection = client.db("TrackingTrip").collection("UserCollection");
-
-
-
- 
 
     //user
     app.get("/users", async (req, res) => {
@@ -115,7 +111,7 @@ async function connectToDatabase() {
       res.send(carData);
     });
 
-    app.patch("/rentCar/:id", verifyToken,  async (req, res) => {
+    app.patch("/rentCar/:id",   async (req, res) => {
       const id = req.params.id;
       const updatedData = req.body;
       const result = await carCollection.updateOne(
@@ -125,14 +121,14 @@ async function connectToDatabase() {
       res.send(result);
     });
 
-    app.delete("/rentCar/:id", verifyToken, async (req, res) => {
+    app.delete("/rentCar/:id",  async (req, res) => {
       const id = req.params.id;
       const result = await carCollection.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
     });
 
 
-    app.post("/rentCar", verifyToken, async (req, res) => {
+    app.post("/rentCar",  async (req, res) => {
       try {
         const carData = req.body;
         const result = await carCollection.insertOne(carData);
