@@ -110,7 +110,7 @@ async function connectToDatabase() {
       res.send(carData);
     });
 
-    app.patch("/rentCar/:id", async (req, res) => {
+    app.patch("/rentCar/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const updatedData = req.body;
       const result = await carCollection.updateOne(
@@ -120,13 +120,13 @@ async function connectToDatabase() {
       res.send(result);
     });
 
-    app.delete("/rentCar/:id", async (req, res) => {
+    app.delete("/rentCar/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const result = await carCollection.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
     });
 
-    app.post("/rentCar", async (req, res) => {
+    app.post("/rentCar", verifyToken, async (req, res) => {
       try {
         const carData = req.body;
         const result = await carCollection.insertOne(carData);
