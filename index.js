@@ -1,49 +1,49 @@
 require('dotenv').config();
 const express = require("express");
 const { MongoClient, ObjectId } = require("mongodb");
-const app = express();
-const port = process.env.port;
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+
+const app = express();
+const port = process.env.PORT || 3000; // Default to 3000 if PORT is not defined in .env
 const uri = process.env.MONGODB_URI;
 
 app.use(cors());
 app.use(express.json());
 
 function createToken(user) {
-  const token = jwt.sign(
-    { email: user.email },
-
-    "secret",
-    { expiresIn: "1h" }
-  );
+  const token = jwt.sign({ email: user.email }, "secret", { expiresIn: "1h" });
   return token;
 }
 
-  // Middleware to verify token
-  function verifyToken(req, res, next) {
-      const token = req.headers.authorization.split(" ")[1];
-      const verify = jwt.verify(token, "secret");
-      if (!verify?.email) {
-        return res.send("You are not authorized");
-      }
-      req.user = verify.email;
-      next();
+
+function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send("No token provided");
+  }
+  
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, "secret", (err, decoded) => {
+    if (err) {
+      return res.status(401).send("Invalid token");
     }
+    req.user = decoded.email;
+    next();
+  });
+}
 
 async function connectToDatabase() {
-  const client = new MongoClient(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
   try {
     await client.connect();
-    console.log("You successfully connected to MongoDB!");
+    console.log("Successfully connected to MongoDB!");
+
     const carCollection = client.db("TrackingTrip").collection("Car");
     const rentalPropertiesCollection = client.db("TrackingTrip").collection("rentHome");
     const userCollection = client.db("TrackingTrip").collection("UserCollection");
 
-    //user
+    // User Routes
     app.get("/users", async (req, res) => {
       const id = req.params.id;
       const result = await userCollection.findOne({ _id: new ObjectId(id) });
@@ -53,6 +53,9 @@ async function connectToDatabase() {
     app.get("/users/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const result = await userCollection.findOne({ email });
+      if (!result) {
+        return res.status(404).send({ error: "User not found" });
+      }
       res.send(result);
     });
 
@@ -81,17 +84,16 @@ async function connectToDatabase() {
 
       if (existingUser) {
         return res.send({
-          message: "user already exists",
+          message: "User already exists",
           insertedId: null,
           token,
         });
       }
       const result = await userCollection.insertOne(user);
-
-      res.send(result);
+      res.send({ ...result, token });
     });
 
-
+    // Car Routes
     app.get("/rentCar", async (req, res) => {
       try {
         const carData = carCollection.find();
@@ -102,16 +104,13 @@ async function connectToDatabase() {
       }
     });
 
-
-    app.get("/rentCar/:id",  async (req, res) => {
+    app.get("/rentCar/:id", async (req, res) => {
       const id = req.params.id;
-      const carData = await carCollection.findOne({
-        _id: new ObjectId(id),
-      });
+      const carData = await carCollection.findOne({ _id: new ObjectId(id) });
       res.send(carData);
     });
 
-    app.patch("/rentCar/:id",   async (req, res) => {
+    app.patch("/rentCar/:id", async (req, res) => {
       const id = req.params.id;
       const updatedData = req.body;
       const result = await carCollection.updateOne(
@@ -121,14 +120,13 @@ async function connectToDatabase() {
       res.send(result);
     });
 
-    app.delete("/rentCar/:id",  async (req, res) => {
+    app.delete("/rentCar/:id", async (req, res) => {
       const id = req.params.id;
       const result = await carCollection.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
     });
 
-
-    app.post("/rentCar",  async (req, res) => {
+    app.post("/rentCar", async (req, res) => {
       try {
         const carData = req.body;
         const result = await carCollection.insertOne(carData);
@@ -147,7 +145,7 @@ async function connectToDatabase() {
         res.status(500).json({ message: err.message });
       }
     });
-  
+    
   } catch (err) {
     console.error("Failed to connect to MongoDB", err);
     process.exit(1);
